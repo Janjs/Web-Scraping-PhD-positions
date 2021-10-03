@@ -1,20 +1,9 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
 import time
-
-class Job:
-    def __init__(self, title, fields, profile):
-        self.title = title
-        self.fields = fields
-        self.profile = profile
-    
-    def toString(self):
-        return ("Job Title: "+self.title+"\n"+
-            "Fields: "+self.fields+"\n"+
-            "Profile: "+self.profile+"\n"+
-            "----------------------\n"
-        )
-
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 def webScrap():
     url = "https://ec.europa.eu/research/mariecurieactions/jobs"
@@ -31,21 +20,42 @@ def webScrap():
 
     jobs = []
     for job_code in jobs_code:
-        job_title = job_code.find('h3').text
         job_types = job_code.find_all('p', class_="jobField")
         fields = job_types[0].strong.text
         profile = job_types[1].strong.text
 
         if "Computer science" in fields and profile == "First Stage Researcher (R1)":
-            new_job = Job(job_title, fields, profile)
-            jobs.append(new_job)
-
-
-    for job in jobs:
-        print(job.toString())   
+            jobs.append(job_code)
 
     driver.close()
+    return jobs
 
+def sendEmail(jobs):
+    sendEmail = "jan.jime.serra@gmail.com"
+    recEmail = "jan.jime.serra@gmail.com"
+    password = input(str("Enter email password: "))
+
+    # Create message container - the correct MIME type is multipart/alternative.
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = "Marie Curie PhD Positions."
+
+    # Create the body of the message
+    html = ""
+    for job in jobs:
+        html += job.prettify()
+
+    # Record the MIME types of both parts - text/plain and text/html.
+    body = MIMEText(html, 'html')
+    msg.attach(body)
+
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.ehlo()
+    server.login(sendEmail, password)
+    print("Login successful!")
+    server.sendmail(sendEmail, recEmail, msg.as_string())
+    print("Email has been sent to ", recEmail)
+    server.quit()
 
 if __name__ == "__main__":
-    webScrap()
+    jobs = webScrap()
+    sendEmail(jobs)
